@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <inttypes.h>
+#include <stdlib.h>
 
 /* Bitmap abstract data type. */
 
@@ -39,6 +40,7 @@ size_t bitmap_scan_and_flip (struct bitmap *, size_t start, size_t cnt, bool);
 size_t bitmap_best_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value);
 size_t bitmap_next_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value);
 size_t bitmap_buddy_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value);
+
 
 /* File input and output. */
 #ifdef FILESYS

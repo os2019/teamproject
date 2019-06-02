@@ -302,10 +302,12 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
     {
       size_t last = b->bit_cnt - cnt;
       size_t i;
-      for (i = start; i <= last; i++)
-        if (!bitmap_contains (b, i, cnt, !value))
+      for (i = start; i <= last; i++) {
+        if (!bitmap_contains (b, i, cnt, !value)) 
           return i; 
+      }
     }
+  
   return BITMAP_ERROR;
 }
 
@@ -350,10 +352,12 @@ bitmap_best_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool 
     if (idx != BITMAP_ERROR) {
         bitmap_set_multiple (b, idx, cnt, !value);
     }
+    printf("LOOP COUNT : %d\n", loop_count);
     return idx;
 }
 size_t
 bitmap_next_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value) {
+  
   size_t idx = bitmap_scan_and_flip (b, start, cnt, value);
   if (idx == BITMAP_ERROR) {
     idx = bitmap_scan_and_flip(b, 0, cnt, value);
@@ -364,32 +368,48 @@ bitmap_next_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool 
 }
 size_t
 bitmap_buddy_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value) {
-
+  
   ASSERT(b != NULL);
   ASSERT (start <= b->bit_cnt);
 
-  size_t idx = BITMAP_ERROR;
-  size_t tmp_start = 0;
-  size_t tmp_end = b->bit_cnt;
-  size_t tmp_size = b->bit_cnt;
+  size_t max_size = b->bit_cnt;
+  size_t idx = 0;
+  size_t tmp = BITMAP_ERROR;
+  size_t tmp_max = max_size;
+  int count = 0;
   
-  while(tmp_size > cnt) {
-    
-    idx = tmp_start;
-    
+  while(tmp_max>1) {
+    tmp_max = tmp_max/2;
+    count++;
+  }
+  size_t buddy[count];
 
-    if(bitmap_test(b, idx) != value) {
-        tmp_start = tmp_start + (tmp_size/2);
+  for(int i = count; i >= 0; i--) {
+    buddy[i] = max_size;
+    max_size = max_size/2;
+  }
+
+  for(int j=0; j<8; j++) {
+    if(buddy[j]>=cnt) {
+      tmp = buddy[j];
+      break;
+    }
+  }
+  while(idx < b->bit_cnt) {
+    if(bitmap_test(b,idx)) {
+      idx = idx + tmp;
     }
     else
     {
-      tmp_end = tmp_end - (tmp_size/2);
+      break;
     }
-    tmp_size = tmp_size/2;
   }
+ 
+ 
   if (idx != BITMAP_ERROR) {
     bitmap_set_multiple (b, idx, cnt, !value);
   }
+  printf("LOOP COUNT : %d\n", loop_count);
   return idx;
 
 }
@@ -436,4 +456,3 @@ bitmap_dump (const struct bitmap *b)
 {
   hex_dump (0, b->bits, byte_cnt (b->bit_cnt), false);
 }
-
