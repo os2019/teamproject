@@ -10,7 +10,7 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-
+#include <vm/frame.h>
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -81,13 +81,13 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 
   lock_acquire (&pool->lock);
   /*first fit*/
-  //page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+  page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
   /*next fit*/
   //page_idx = bitmap_next_fit_scan_and_flip (pool->used_map, last_allocated, page_cnt, false);
   /*best fit*/
   //page_idx = bitmap_best_fit_scan_and_flip (pool->used_map, 0, page_cnt, false);
   /*buddy system*/
-  page_idx = bitmap_buddy_scan_and_flip (pool->used_map, 0, page_cnt, false);
+  //page_idx = bitmap_buddy_scan_and_flip (pool->used_map, 0, page_cnt, false);
   
   lock_release (&pool->lock);
 
@@ -146,6 +146,8 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     NOT_REACHED ();
 
   page_idx = pg_no (pages) - pg_no (pool->base);
+  if(pool == &user_pool)
+    remove_frame_multiple(pages,page_cnt);
 
 #ifndef NDEBUG
   memset (pages, 0xcc, PGSIZE * page_cnt);
@@ -193,4 +195,9 @@ page_from_pool (const struct pool *pool, void *page)
   size_t end_page = start_page + bitmap_size (pool->used_map);
 
   return page_no >= start_page && page_no < end_page;
+}
+
+size_t get_user_index(uint8_t * page){
+  ASSERT(page_from_pool(&user_pool, page) == true);
+  return (page - user_pool.base) / PGSIZE;
 }
