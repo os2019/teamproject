@@ -295,19 +295,24 @@ bitmap_all (const struct bitmap *b, size_t start, size_t cnt)
 size_t
 bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value) 
 {
+  static int op_count = 0;
   ASSERT (b != NULL);
   ASSERT (start <= b->bit_cnt);
 
   if (cnt <= b->bit_cnt) 
-    {
-      size_t last = b->bit_cnt - cnt;
-      size_t i;
-      for (i = start; i <= last; i++) {
-        if (!bitmap_contains (b, i, cnt, !value)) 
-          return i; 
-      }
+  {
+    size_t last = b->bit_cnt - cnt;
+    size_t i;
+    for (i = start; i <= last; i++) {
+      op_count++;
+      if (!bitmap_contains (b, i, cnt, !value)) {
+        printf("Operation Count : %d\n", op_count);
+        return i;
+      } 
     }
-  
+  }
+  //Print the operation count for problem 2.
+  printf("Operation Count : %d\n", op_count);
   return BITMAP_ERROR;
 }
 
@@ -324,10 +329,19 @@ bitmap_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value)
   size_t idx = bitmap_scan (b, start, cnt, value);
   if (idx != BITMAP_ERROR) 
     bitmap_set_multiple (b, idx, cnt, !value);
+  
   return idx;
 }
+/* Finds the best group of bits that is most simillar to # of CNT bits.
+   It will search the whole memories in the block, checking the available
+   start point and end point.
+   The interval from start to end represent the size.
+   When the function found the best group, set all VALUE in the best group
+   to !VALUE, and returns the index of the first bit in the group.
+   If there is no such group, returns BITMAP_ERROR. */
 size_t
 bitmap_best_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value){
+    static int op_count = 0;
     ASSERT(b != NULL);
     ASSERT (start <= b->bit_cnt);
 
@@ -347,69 +361,84 @@ bitmap_best_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool 
             avail_start = avail_end;
         }
         avail_end++;
+        op_count++;
     }
 
     if (idx != BITMAP_ERROR) {
         bitmap_set_multiple (b, idx, cnt, !value);
     }
-    printf("LOOP COUNT : %d\n", loop_count);
+    //Print the operation count for problem 2.
+    printf("Operation Count : %d\n", op_count);
     return idx;
 }
+/* Find the first group of CNT consecutive bits in B from the last
+   allocated point that are all set to VALUE, flips them all to !VALUE,
+   and returns the index of the first bit in the group.
+   It calls first_fit algorithm, cause the operation is same. But, start
+   parameter will be changing into the last allocated point when next_fit
+   function is called.
+   If there is no such group, returns BITMAP_ERROR.
+   */
 size_t
 bitmap_next_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value) {
-  
+  //bitmap_scan asser the errors.
+  //So, don't need to assert the errors.
   size_t idx = bitmap_scan_and_flip (b, start, cnt, value);
   if (idx == BITMAP_ERROR) {
     idx = bitmap_scan_and_flip(b, 0, cnt, value);
   }
-  //already bitmap_set_multiple(); called in bitmap_scan_and_flip();
-  //don't need to call function.
+  //Already bitmap_set_multiple(); called in bitmap_scan_and_flip();
+  //So, don't need to call function.
   return idx;
 }
+/* Buddy system.
+   Divive block size to two blocks, and repeat that for each divided block
+   until we find the fit block that is the group with the size can 
+   allocate the # of CNT. After that, find the possible space to allocate
+   and set all VALUE to !VALUE.
+   If there is no such group, returns BITMAP_ERROR. */
 size_t
 bitmap_buddy_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value) {
-  
+  static int op_count = 0;
   ASSERT(b != NULL);
   ASSERT (start <= b->bit_cnt);
 
-  size_t max_size = b->bit_cnt;
-  size_t idx = 0;
-  size_t tmp = BITMAP_ERROR;
-  size_t tmp_max = max_size;
-  int count = 0;
   
-  while(tmp_max>1) {
-    tmp_max = tmp_max/2;
-    count++;
+  size_t idx = 0;
+  size_t tmp = b ->bit_cnt;
+  
+  // divide 2 block space size to find # of CNT fit size 
+  while(tmp>cnt) {
+    tmp = tmp/2;
+    op_count++;
   }
-  size_t buddy[count];
-
-  for(int i = count; i >= 0; i--) {
-    buddy[i] = max_size;
-    max_size = max_size/2;
+    
+  // Check for over_divided
+  if(tmp<cnt) {
+    tmp = tmp*2;
+    op_count++;
   }
-
-  for(int j=0; j<8; j++) {
-    if(buddy[j]>=cnt) {
-      tmp = buddy[j];
-      break;
-    }
-  }
+    
+  // Check availability of the space
   while(idx < b->bit_cnt) {
     if(bitmap_test(b,idx)) {
       idx = idx + tmp;
+      op_count++;
     }
     else
     {
-      break;
+      break; 
     }
   }
+  if(idx > b->bit_cnt)
+    idx = BITMAP_ERROR;
  
  
   if (idx != BITMAP_ERROR) {
     bitmap_set_multiple (b, idx, cnt, !value);
   }
-  printf("LOOP COUNT : %d\n", loop_count);
+  // Print the operation count for problem 2.
+  printf("Operation Count : %d\n", op_count);
   return idx;
 
 }
@@ -455,4 +484,38 @@ void
 bitmap_dump (const struct bitmap *b) 
 {
   hex_dump (0, b->bits, byte_cnt (b->bit_cnt), false);
+}
+/* print_fragmentation
+   Print the # of blank space for check Fragmentation.
+   It will be used for solving problem 2. */
+void
+print_fragmentation (struct bitmap *b) {
+  size_t max = b->bit_cnt;
+  size_t head = 0;
+  size_t tail = 0;
+  int count = 0;
+  for(size_t i = 0; i < max ; i++) {
+    if(bitmap_test(b, i)) {
+      head = i;
+      break;
+    }
+      
+  }
+  for(size_t j = max - 1; j >= head; j--) {
+    if(bitmap_test(b, j)) {
+      tail = j;
+      break;
+    }
+  }
+  if(head == tail) {
+    printf("No Fragmentations.\n");
+  }
+  else {
+    for(size_t k = head; k <= tail; k++) {
+      if(!bitmap_test(b, k)) {
+        count++;
+      }
+    } 
+   printf("Fragmentations : %d\n", count);
+  }
 }
