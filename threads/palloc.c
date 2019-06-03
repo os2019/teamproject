@@ -201,3 +201,7 @@ size_t get_user_index(uint8_t * page){
   ASSERT(page_from_pool(&user_pool, page) == true);
   return (page - user_pool.base) / PGSIZE;
 }
+
+uint8_t* index_to_user_page(size_t page_idx){
+  return user_pool.base + PGSIZE * page_idx;
+}

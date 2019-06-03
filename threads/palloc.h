@@ -19,5 +19,6 @@ void palloc_free_page (void *);
 void palloc_free_multiple (void *, size_t page_cnt);
 
 size_t get_user_index(uint8_t * page);
+uint8_t* index_to_user_page(size_t page_idx);
 
 #endif /* threads/palloc.h */

@@ -4,6 +4,9 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "vm/frame.h"
+#include "threads/palloc.h"
+#include "threads/thread.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -157,5 +160,38 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
+
+  //페이지폴트가 발생한 virtual address v , process p
+  //swap out 할 다른 페이지 주소 :p1
+ 
+  
+  // p1을 디스크의 어디에 넣을지 결정해서 out함
+  swap_space = swap_out_page();
+  swap_out_page(swap_space, p1);
+  //frame table을 이용하여 p1을 소유하고 있던 프로세스를 가져오고,
+  //해당 프로세스의 supplement page table에서 p1이 swap out되었다고 체크함
+  struct frame_table* ftable = get_ftable();
+  struct thread* swapped_thread =  ftable->entry[get_user_index(p1)].t;
+  int8_t *swapped_virtual_addr = ftable->entry[get_user_index(p1)].upage;
+  swapped_thread->supplement_page_table.swap_out(upage);
+
+  //페이지폴트가 발생한 프로세스의 pageDir 참조해서 어떤 페이지가 필요한지 가져와야 함
+  struct thread* t = thread_current();
+  //해당 페이지가 실행 파일에 있는지, 디스크에 있는지 
+  status = t->s_page_table.get(fault_addr);
+  // 스왑에 있을 경우
+   if(status == ON_SWAP){
+      install_page(get_page_from_swap((t->name),fault_addr),p1);
+      t->suppplement_page_table.swap_in(fault_addr);
+   }
+   else if (status == ON_DISK){
+      install_page(get_page_from_file(t->name, fault_addr),p1);
+      t->suppplement_page_table.swap_in(fault_addr);
+   }
+   else{
+      //error
+      printf("error\n");
+   }
+
 }
 
