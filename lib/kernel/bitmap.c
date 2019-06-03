@@ -332,7 +332,8 @@ bitmap_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value)
   
   return idx;
 }
-/* Finds the best group of bits that is most simillar to # of CNT bits.
+/* Problem 1 : best-fit.
+   Finds the best group of bits that is most simillar to # of CNT bits.
    It will search the whole memories in the block, checking the available
    start point and end point.
    The interval from start to end represent the size.
@@ -371,11 +372,12 @@ bitmap_best_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool 
     printf("Operation Count : %d\n", op_count);
     return idx;
 }
-/* Find the first group of CNT consecutive bits in B from the last
-   allocated point that are all set to VALUE, flips them all to !VALUE,
-   and returns the index of the first bit in the group.
-   It calls first_fit algorithm, cause the operation is same. But, start
-   parameter will be changing into the last allocated point when next_fit
+/* Problem 1 : next-fit.
+   Find the first group of CNT consecutive bits in B that are all set to VALUE
+   from the last allocated point , flips them all to !VALUE, and returns
+   the index of the first bit in the group.
+   It calls first_fit algorithm, because the operation is same. But, start
+   parameter will be changing to the last allocated point when next_fit
    function is called.
    If there is no such group, returns BITMAP_ERROR.
    */
@@ -391,7 +393,7 @@ bitmap_next_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool 
   //So, don't need to call function.
   return idx;
 }
-/* Buddy system.
+/* Problem 1 : Buddy system.
    Divive block size to two blocks, and repeat that for each divided block
    until we find the fit block that is the group with the size can 
    allocate the # of CNT. After that, find the possible space to allocate
@@ -485,7 +487,8 @@ bitmap_dump (const struct bitmap *b)
 {
   hex_dump (0, b->bits, byte_cnt (b->bit_cnt), false);
 }
-/* print_fragmentation
+/* Problem 2 : Fragmentation.
+   print_fragmentation.
    Print the # of blank space for check Fragmentation.
    It will be used for solving problem 2. */
 void
