@@ -137,7 +137,6 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
-  printf("swap out frame: %p\n", swap_out_page());
   struct thread *cur = thread_current ();
   uint32_t *pd;
 

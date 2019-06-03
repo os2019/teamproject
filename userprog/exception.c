@@ -7,6 +7,8 @@
 #include "vm/frame.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
+#include "userprog/process.h"
+#include "userprog/pagedir.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -125,73 +127,71 @@ kill (struct intr_frame *f)
 static void
 page_fault (struct intr_frame *f) 
 {
-  bool not_present;  /* True: not-present page, false: writing r/o page. */
-  bool write;        /* True: access was write, false: access was read. */
-  bool user;         /* True: access by user, false: access by kernel. */
-  void *fault_addr;  /* Fault address. */
+   bool not_present;  /* True: not-present page, false: writing r/o page. */
+   bool write;        /* True: access was write, false: access was read. */
+   bool user;         /* True: access by user, false: access by kernel. */
+   void *fault_addr;  /* Fault address. */
 
-  /* Obtain faulting address, the virtual address that was
-     accessed to cause the fault.  It may point to code or to
-     data.  It is not necessarily the address of the instruction
-     that caused the fault (that's f->eip).
-     See [IA32-v2a] "MOV--Move to/from Control Registers" and
-     [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
-     (#PF)". */
-  asm ("movl %%cr2, %0" : "=r" (fault_addr));
+   /* Obtain faulting address, the virtual address that was
+      accessed to cause the fault.  It may point to code or to
+      data.  It is not necessarily the address of the instruction
+      that caused the fault (that's f->eip).
+      See [IA32-v2a] "MOV--Move to/from Control Registers" and
+      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
+      (#PF)". */
+   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
-  /* Turn interrupts back on (they were only off so that we could
-     be assured of reading CR2 before it changed). */
-  intr_enable ();
+   /* Turn interrupts back on (they were only off so that we could
+      be assured of reading CR2 before it changed). */
+   intr_enable ();
 
-  /* Count page faults. */
-  page_fault_cnt++;
+   /* Count page faults. */
+   page_fault_cnt++;
 
-  /* Determine cause. */
-  not_present = (f->error_code & PF_P) == 0;
-  write = (f->error_code & PF_W) != 0;
-  user = (f->error_code & PF_U) != 0;
+   /* Determine cause. */
+   not_present = (f->error_code & PF_P) == 0;
+   write = (f->error_code & PF_W) != 0;
+   user = (f->error_code & PF_U) != 0;
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+   /* To implement virtual memory, delete the rest of the function
+      body, and replace it with code that brings in the page to
+      which fault_addr refers. */
+   printf ("Page fault at %p: %s error %s page in %s context.\n",
+            fault_addr,
+            not_present ? "not present" : "rights violation",
+            write ? "writing" : "reading",
+            user ? "user" : "kernel");
+   kill (f);
 
-  //페이지폴트가 발생한 virtual address v , process p
-  //swap out 할 다른 페이지 주소 :p1
- 
-  
-  // p1을 디스크의 어디에 넣을지 결정해서 out함
-  swap_space = swap_out_page();
-  swap_out_page(swap_space, p1);
-  //frame table을 이용하여 p1을 소유하고 있던 프로세스를 가져오고,
-  //해당 프로세스의 supplement page table에서 p1이 swap out되었다고 체크함
-  struct frame_table* ftable = get_ftable();
-  struct thread* swapped_thread =  ftable->entry[get_user_index(p1)].t;
-  int8_t *swapped_virtual_addr = ftable->entry[get_user_index(p1)].upage;
-  swapped_thread->supplement_page_table.swap_out(upage);
+   //페이지폴트가 발생한 프로세스의 pageDir 참조해서 어떤 페이지가 필요한지 가져와야 함
+   struct thread* t = thread_current();
 
-  //페이지폴트가 발생한 프로세스의 pageDir 참조해서 어떤 페이지가 필요한지 가져와야 함
-  struct thread* t = thread_current();
-  //해당 페이지가 실행 파일에 있는지, 디스크에 있는지 
-  status = t->s_page_table.get(fault_addr);
-  // 스왑에 있을 경우
-   if(status == ON_SWAP){
-      install_page(get_page_from_swap((t->name),fault_addr),p1);
-      t->suppplement_page_table.swap_in(fault_addr);
+   /*잘못된 접근인지를 체크함*/
+   if(0){
+      process_exit();
    }
-   else if (status == ON_DISK){
-      install_page(get_page_from_file(t->name, fault_addr),p1);
-      t->suppplement_page_table.swap_in(fault_addr);
-   }
-   else{
-      //error
-      printf("error\n");
-   }
-
+   
+   // swap out할 페이지를 선택해서 out함
+   /*함수 내부에서 supplement page table 수정도 있어야 함*/
+   uint8_t *swap_space = swap_out_page();
+   
+   
+   //해당 페이지가 실행 파일에 있는지, 디스크에 있는지 
+   //status = t->s_page_table.get(fault_addr);
+   // 스왑에 있을 경우
+   /*
+      if(){
+         install_page(fault_addr,get_page_from_swap((t->name),fault_addr),);
+      }
+      else if (status == ON_DISK){
+         struct file *file = filesys_open(t->name);
+         
+         install_page(fault_addr,get_page_from_file(t->name, fault_addr),);
+      }
+      else{
+         //error
+         printf("error\n");
+      }
+     */ 
 }
 
