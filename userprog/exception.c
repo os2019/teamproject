@@ -161,7 +161,7 @@ page_fault (struct intr_frame *f)
             not_present ? "not present" : "rights violation",
             write ? "writing" : "reading",
             user ? "user" : "kernel");
-   kill (f);
+   //kill (f);
 
    //페이지폴트가 발생한 프로세스의 pageDir 참조해서 어떤 페이지가 필요한지 가져와야 함
    struct thread* t = thread_current();
@@ -170,11 +170,13 @@ page_fault (struct intr_frame *f)
    if(0){
       process_exit();
    }
-   
+   printf("swap out start\n");
    // swap out할 페이지를 선택해서 out함
-   /*함수 내부에서 supplement page table 수정도 있어야 함*/
-   uint8_t *swap_space = swap_out_page();
-   
+   uint8_t *swapped_kpage = swap_out_page();
+   printf("swap in start\n");
+   if(swap_in(fault_addr, swapped_kpage)){
+      return;
+   }
    
    //해당 페이지가 실행 파일에 있는지, 디스크에 있는지 
    //status = t->s_page_table.get(fault_addr);
