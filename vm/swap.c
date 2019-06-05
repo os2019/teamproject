@@ -28,7 +28,7 @@ void swap_init(){
     }
 }
 
-/*kpage에 있는, 쓰레드 t가 소유하고 있고 upage로 매핑된 페이지를 해제한다*/
+/*kpage에 있는, 쓰레드 t가 소유하고 있고 upage로 매핑된 페이지를 스왑 아웃 한다*/
 bool swap_out(struct thread* t,  void* upage, uint8_t* kpage){
     ASSERT(PGSIZE % BLOCK_SECTOR_SIZE == 0);
 
@@ -63,6 +63,7 @@ bool swap_out(struct thread* t,  void* upage, uint8_t* kpage){
     return true;
 }
 
+/*swap space에서 t,upage를 찾아 프레임 kpage에 쓴다*/
 bool swap_in(struct thread *t, void* upage, uint8_t *kpage){
     struct block *swap = block_get_role(BLOCK_SWAP);
     /*swap table에서 해당 virtual address가 존재하는지 검색*/

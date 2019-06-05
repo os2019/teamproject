@@ -36,9 +36,11 @@ bool bitmap_all (const struct bitmap *, size_t start, size_t cnt);
 #define BITMAP_ERROR SIZE_MAX
 size_t bitmap_scan (const struct bitmap *, size_t start, size_t cnt, bool);
 size_t bitmap_scan_and_flip (struct bitmap *, size_t start, size_t cnt, bool);
+/* Problem 1 : Page allocations. */
 size_t bitmap_best_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value);
 size_t bitmap_next_fit_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value);
 size_t bitmap_buddy_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value);
+
 
 /* File input and output. */
 #ifdef FILESYS
@@ -50,5 +52,6 @@ bool bitmap_write (const struct bitmap *, struct file *);
 
 /* Debugging. */
 void bitmap_dump (const struct bitmap *);
-
+/* Problem 2. */
+void print_fragmentation (struct bitmap *b);
 #endif /* lib/kernel/bitmap.h */
