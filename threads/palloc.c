@@ -81,13 +81,13 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   
   lock_acquire (&pool->lock);
   /* first fit. */
-  //page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+  page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
   /* next fit. */
   //page_idx = bitmap_next_fit_scan_and_flip (pool->used_map, last_allocated, page_cnt, false);
   /* best fit. */
   //page_idx = bitmap_best_fit_scan_and_flip (pool->used_map, 0, page_cnt, false);
   /* buddy system. */
-  page_idx = bitmap_buddy_scan_and_flip (pool->used_map, 0, page_cnt, false);
+  //page_idx = bitmap_buddy_scan_and_flip (pool->used_map, 0, page_cnt, false);
 
   lock_release (&pool->lock);
 

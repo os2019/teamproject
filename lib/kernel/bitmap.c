@@ -424,14 +424,13 @@ bitmap_buddy_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool val
       break; 
     }
   }
-  if(idx > b->bit_cnt - cnt - 1);
+
+  if(idx > b->bit_cnt - cnt - 1)
     idx = BITMAP_ERROR;
  
  
-  if (idx != BITMAP_ERROR) {
-    printf("%d + %d <= %d\n",idx, cnt ,b->bit_cnt);
-    bitmap_set_multiple (b, idx, cnt, !value);
-    printf("check2\n");
+  if (idx != BITMAP_ERROR) {\
+    bitmap_set_multiple (b, idx, cnt, !value);\
   }
   // Print the operation count for problem 2.
   //printf("Operation Count : %d\n", op_count);
