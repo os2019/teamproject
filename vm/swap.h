@@ -11,3 +11,4 @@ void swap_init();
 bool swap_out(struct thread* t,  void* upage, uint8_t* kpage);
 bool swap_in(struct thread *t, void* upage, uint8_t *kpage);
 void show_swap_table();
+void swap_release(struct thread *t);

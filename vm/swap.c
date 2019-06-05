@@ -108,3 +108,16 @@ void show_swap_table(){
         }
     }
 }
+
+void swap_release(struct thread *t){
+    if(t == NULL){
+        return;
+    }
+    for(int i = 0; i < s_table.length; i++){
+        if(s_table.entry[i].t == t){
+            s_table.entry[i].t = NULL;
+            s_table.entry[i].upage = NULL;
+            s_table.entry[i].writable = false;
+        }
+    }
+}

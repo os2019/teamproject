@@ -163,13 +163,11 @@ page_fault (struct intr_frame *f)
             not_present ? "not present" : "rights violation",
             write ? "writing" : "reading",
             user ? "user" : "kernel");
-   */
+            */
    //페이지폴트가 발생한 프로세스의 pageDir 참조해서 어떤 페이지가 필요한지 가져와야 함
    struct thread* t = thread_current();
    /*address를 page의 시작 주소로 변환해야 함, 즉 뒤의 12비트를 전부 0으로 만들어야 함*/
    uint32_t* upage = (((uint32_t)fault_addr >> PGBITS) << PGBITS);
-   //printf("%p %p\n", upage, fault_addr);
-   /*몇가지 에러체크 더 해야 함*/
    /*메인 메모리에 존재하는지 확인함*/
    if(not_present){      
       // swap out할 페이지를 선택해서 out함
@@ -177,17 +175,8 @@ page_fault (struct intr_frame *f)
       uint8_t *swapped_kpage = palloc_get_page(PAL_USER);
       /*swap space에 가져올 페이지가 있는지 살펴봄*/
       if(!swap_in(t, upage, swapped_kpage)){
-         /*없는 경우: 디스크에서 해당 페이지를 가져와야 함*/
+         /*없는 경우: 디스크에서 해당 페이지를 가져와야 함 -> 여기서는 다루지 않음*/
          //printf("the page %p is not in swap space, page is in file system\n",fault_addr);
-         return;
-         /*디스크에서 가져오는 것 구현.*/
-         if(1){
-         }
-         /*파일시스템에서 로딩 실패시*/
-         else{
-            printf("error\n");
-            kill(f);
-         }
       }
    }
    /*read-only page에 write 요청이 들어온 경우*/
