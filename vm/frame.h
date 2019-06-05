@@ -25,6 +25,6 @@ void remove_frame_multiple(void * kpage, size_t page_cnt);
 
 
 struct frame_table* get_ftable();
-uint8_t* swap_out_page();
-
+bool swap_out_page();
+void show_frame_table_status();
 #endif

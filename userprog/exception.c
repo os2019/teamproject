@@ -9,6 +9,7 @@
 #include "threads/thread.h"
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
+#include "vm/swap.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -156,44 +157,46 @@ page_fault (struct intr_frame *f)
    /* To implement virtual memory, delete the rest of the function
       body, and replace it with code that brings in the page to
       which fault_addr refers. */
+   /*
    printf ("Page fault at %p: %s error %s page in %s context.\n",
             fault_addr,
             not_present ? "not present" : "rights violation",
             write ? "writing" : "reading",
             user ? "user" : "kernel");
-   //kill (f);
-
+   */
    //페이지폴트가 발생한 프로세스의 pageDir 참조해서 어떤 페이지가 필요한지 가져와야 함
    struct thread* t = thread_current();
+   /*address를 page의 시작 주소로 변환해야 함, 즉 뒤의 12비트를 전부 0으로 만들어야 함*/
+   uint32_t* upage = (((uint32_t)fault_addr >> PGBITS) << PGBITS);
+   //printf("%p %p\n", upage, fault_addr);
+   /*몇가지 에러체크 더 해야 함*/
+   /*메인 메모리에 존재하는지 확인함*/
+   if(not_present){      
+      // swap out할 페이지를 선택해서 out함
+      swap_out_page();
+      uint8_t *swapped_kpage = palloc_get_page(PAL_USER);
+      /*swap space에 가져올 페이지가 있는지 살펴봄*/
+      if(!swap_in(t, upage, swapped_kpage)){
+         /*없는 경우: 디스크에서 해당 페이지를 가져와야 함*/
+         //printf("the page %p is not in swap space, page is in file system\n",fault_addr);
+         return;
+         /*디스크에서 가져오는 것 구현.*/
+         if(1){
+         }
+         /*파일시스템에서 로딩 실패시*/
+         else{
+            printf("error\n");
+            kill(f);
+         }
+      }
+   }
+   /*read-only page에 write 요청이 들어온 경우*/
+   else if(!pagedir_is_writable(t->pagedir, upage) && write){
+      printf("ERROR: write to read-only page\n");
+   }
+   /*유저가 커널 페이지에 접근할 경우*/
+   //else if(user && )
 
-   /*잘못된 접근인지를 체크함*/
-   if(0){
-      process_exit();
-   }
-   printf("swap out start\n");
-   // swap out할 페이지를 선택해서 out함
-   uint8_t *swapped_kpage = swap_out_page();
-   printf("swap in start\n");
-   if(swap_in(fault_addr, swapped_kpage)){
-      return;
-   }
-   
-   //해당 페이지가 실행 파일에 있는지, 디스크에 있는지 
-   //status = t->s_page_table.get(fault_addr);
-   // 스왑에 있을 경우
-   /*
-      if(){
-         install_page(fault_addr,get_page_from_swap((t->name),fault_addr),);
-      }
-      else if (status == ON_DISK){
-         struct file *file = filesys_open(t->name);
-         
-         install_page(fault_addr,get_page_from_file(t->name, fault_addr),);
-      }
-      else{
-         //error
-         printf("error\n");
-      }
-     */ 
+   return;
 }
 

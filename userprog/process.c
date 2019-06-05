@@ -84,9 +84,7 @@ start_process (void *_params)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   
-  
   success = load (params, &if_.eip, &if_.esp);
-
   /* It is okay to continue exec in parent process. */
   t = thread_current ();
   sema_up (&t->load_sema);
@@ -292,6 +290,7 @@ load (struct uprg_params *params, void (**eip) (void), void **esp)
   bool success = false;
   int i;
   char *file_name;
+  int load_cnt = 0;
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -325,6 +324,7 @@ load (struct uprg_params *params, void (**eip) (void), void **esp)
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
     {
+      load_cnt++;
       struct Elf32_Phdr phdr;
 
       if (file_ofs < 0 || file_ofs > file_length (file))
@@ -379,18 +379,16 @@ load (struct uprg_params *params, void (**eip) (void), void **esp)
           break;
         }
     }
-
   /* Set up stack. */
   if (!setup_stack (params, esp))
     goto done;
-
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-
   success = true;
 
  done:
   /* We arrive here whether the load is successful or not. */
+  printf("file %s load %s\n", file_name, success? "success" : "failed");
   file_close (file);
   return success;
 }
@@ -477,9 +475,19 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
-
+      // 실패하면 스왑아웃으로 공간을 만들어서 일단 올리는 방법
+      if (kpage == NULL){
+        swap_out_page();
+        kpage = palloc_get_page (PAL_USER);
+      }
+      /*
+      //실패하면 페이지테이블에만 등록하고, 메모리에는 올리지 않는 방법
+      if (kpage == NULL){
+        struct thread *t = thread_current();
+        pagedir_empty_page(t->pagedir,upage,writable);
+        return true;
+      }
+      */
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
@@ -487,13 +495,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
         }
+      /*debug*/
+        if(upage == 0x8048000){
+        for(int i = 0; i < PGSIZE; i+=sizeof(int)){
+          //printf("%p %d\n",kpage,*(kpage + i));
+        }
+      }
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -515,6 +528,11 @@ setup_stack (struct uprg_params *params, void **esp)
   uint32_t addr; 
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  /*할당 실패했으면 스왑아웃으로 공간을 만들어서 할당받음*/
+  if(kpage == NULL){
+    swap_out_page();
+    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+  }
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);

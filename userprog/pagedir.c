@@ -267,3 +267,35 @@ bool pagedir_is_writable(uint32_t *pd, const void *vpage){
   uint32_t *pte = lookup_page(pd,vpage,false);
   return pte != NULL && (*pte & PTE_W) != 0;
 }
+
+void pagedir_set_present(uint32_t *pd, const void *vpage, bool present) {
+  uint32_t *pte = lookup_page (pd, vpage, false);
+  if (pte != NULL) 
+    if(present){
+      *pte = *pte & PTE_P;
+    }
+    else{
+      *pte = *pte & !PTE_P;
+    }
+}
+
+bool pagedir_empty_page (uint32_t *pd, void *upage, bool writable)
+{
+  uint32_t *pte;
+
+  ASSERT (pg_ofs (upage) == 0);
+  ASSERT (is_user_vaddr (upage));
+  ASSERT (pd != init_page_dir);
+
+  pte = lookup_page (pd, upage, true);
+
+  if (pte != NULL) 
+    {
+      ASSERT ((*pte & PTE_P) == 0);
+      /*unset present bit*/
+      *pte = 0x0;
+      return true;
+    }
+  else
+    return false;
+}

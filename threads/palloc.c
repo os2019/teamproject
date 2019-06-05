@@ -154,7 +154,9 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 #endif
 
   ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
+  lock_acquire (&pool->lock);
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+  lock_release (&pool->lock);
 }
 
 /* Frees the page at PAGE. */

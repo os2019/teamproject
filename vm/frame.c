@@ -26,7 +26,7 @@ void add_frame_multiple(struct thread* t, void* upage, void* kpage, size_t page_
     lock_acquire(&ft_lock);
     for(size_t i = 0; i < page_cnt; i++){
         /*debugging*/
-        //printf("%s %p %p %d\n", t->name, upage, kpage, get_user_index(kpage) + i);
+        //printf("adding... %s %p %p %d\n", t->name, upage, kpage, get_user_index(kpage) + i);
         ftable.entry[get_user_index(kpage) + i].upage = upage;
         ftable.entry[get_user_index(kpage) + i].t = t;
     }
@@ -38,7 +38,7 @@ void remove_frame(void * kpage){
 
 void remove_frame_multiple(void * kpage, size_t page_cnt){
     /*debugging*/
-    //printf("frame address: %p\n", kpage);
+    //printf("removing... frame address: %p\n", kpage);
     lock_acquire(&ft_lock);
     for(size_t i = 0; i < page_cnt; i++){
         ftable.entry[get_user_index(kpage)+i].upage = NULL;
@@ -53,7 +53,7 @@ struct frame_table* get_ftable(){
 
 
 /*clock*/
-uint8_t* swap_out_page(){
+bool swap_out_page(){
     static uint32_t last_pointed = 0;
     /*단계 1*/
     for(uint32_t i = 0; i < ftable.length; i++){
@@ -64,7 +64,8 @@ uint8_t* swap_out_page(){
                 && !pagedir_is_dirty(ftable.entry[last_pointed].t->pagedir,ftable.entry[last_pointed].upage)){
             //스왑아웃할때 쓰레드, upage, kpage 넘겨줌
             swap_out(ftable.entry[last_pointed].t, ftable.entry[last_pointed].upage, index_to_user_page(last_pointed));
-            return index_to_user_page(last_pointed);
+            last_pointed = (last_pointed + 1) % ftable.length;
+            return true;
         }
         last_pointed = (last_pointed + 1) % ftable.length;
     }
@@ -76,7 +77,8 @@ uint8_t* swap_out_page(){
         else if(!pagedir_is_accessed(ftable.entry[last_pointed].t->pagedir,ftable.entry[last_pointed].upage)){
             //스왑아웃할때 쓰레드, upage, kpage 넘겨줌
             swap_out(ftable.entry[last_pointed].t, ftable.entry[last_pointed].upage, index_to_user_page(last_pointed));
-            return index_to_user_page(last_pointed);
+            last_pointed = (last_pointed + 1) % ftable.length;
+            return true;
         }else{
             pagedir_set_accessed(ftable.entry[last_pointed].t->pagedir,ftable.entry[last_pointed].upage,false);
         }
@@ -84,5 +86,19 @@ uint8_t* swap_out_page(){
     }
     //스왑아웃할때 쓰레드, upage, kpage 넘겨줌
     swap_out(ftable.entry[last_pointed].t, ftable.entry[last_pointed].upage, index_to_user_page(last_pointed));
-    return index_to_user_page(last_pointed);
+    last_pointed = (last_pointed + 1) % ftable.length;
+    return true;
+}
+
+void show_frame_table_status(){
+    lock_acquire(&ft_lock);
+    for(size_t i = 0; i < ftable.length; i++){
+       if(ftable.entry[i].t == NULL || ftable.entry[i].upage == NULL){
+           continue;
+       }
+       else{
+           printf("thread: %s, frame address: %p, user address: %p\n", ftable.entry[i].t->name, index_to_user_page(i),ftable.entry[i].upage);
+       }
+    }
+    lock_release(&ft_lock);
 }

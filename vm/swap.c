@@ -28,13 +28,9 @@ void swap_init(){
     }
 }
 
+/*kpage에 있는, 쓰레드 t가 소유하고 있고 upage로 매핑된 페이지를 해제한다*/
 bool swap_out(struct thread* t,  void* upage, uint8_t* kpage){
     ASSERT(PGSIZE % BLOCK_SECTOR_SIZE == 0);
-    
-    //해당 쓰레드의 pageDir에서 제거
-    pagedir_clear_page(t->pagedir,upage);
-    //물리 프레임과 frame table 제거
-    palloc_free_page(kpage);
 
     /*swap table에서 공간 검색*/
     struct block* swap = block_get_role(BLOCK_SWAP);
@@ -44,44 +40,31 @@ bool swap_out(struct thread* t,  void* upage, uint8_t* kpage){
             break;
     }
     if(idx == s_table.length){
-        /*디스크로 내부내는 코드 구현해야 함*/
         printf("swap space is full\n");
         return false;
     }
 
     //swap space에 write
     for(int i = 0 ; i < BLOCK_PER_PAGE; i++){
-        //printf("sector index: %d, out from physical address %p\n", idx * BLOCK_PER_PAGE + i, kpage + i * BLOCK_SECTOR_SIZE);
+        //printf("swapping out... sector index: %d, out from physical address %p\n", idx * BLOCK_PER_PAGE + i, kpage + i * BLOCK_SECTOR_SIZE);
         block_write(swap, idx * BLOCK_PER_PAGE + i, kpage + i * (BLOCK_SECTOR_SIZE));
     }
+
+    //해당 쓰레드의 pageDir에서 제거
+    pagedir_clear_page(t->pagedir,upage);
+    //물리 프레임과 frame table 제거
+    palloc_free_page(kpage);
+
     /*swap table 업데이트*/
     s_table.entry[idx].t = t;
     s_table.entry[idx].upage = upage;
     s_table.entry[idx].writable = pagedir_is_writable(t->pagedir, upage);
 
-    /*
-    debugging, 대충 swap table 전부 찍어보는 코드
-    for(size_t i = 0; i < s_table.length; i++){
-        if(s_table.entry[i].t == NULL || s_table.entry[i].upage == NULL){
-            
-        }
-        else{
-            //printf("swap table :: index: %d, thread: %s, user page: %p\n",i, s_table.entry[i].t->name,s_table.entry[i].upage);
-            void * p = palloc_get_page(false);
-            for(int j = 0; j <BLOCK_PER_PAGE; j++){
-                block_read(swap, i * BLOCK_PER_PAGE + j, p + BLOCK_SECTOR_SIZE * j);
-                //printf("swap disk :: user page: %p\n", p + BLOCK_SECTOR_SIZE * j);
-            }
-            palloc_free_page(p);
-        }
-    }
-    */
     return true;
 }
 
-bool swap_in(struct thread *t, void* upage, uint8_t kpage){
+bool swap_in(struct thread *t, void* upage, uint8_t *kpage){
     struct block *swap = block_get_role(BLOCK_SWAP);
-
     /*swap table에서 해당 virtual address가 존재하는지 검색*/
     size_t idx;
     for(idx = 0; idx < s_table.length; idx++){
@@ -100,14 +83,28 @@ bool swap_in(struct thread *t, void* upage, uint8_t kpage){
     /*physical frame에 올림*/
     for(int i = 0; i <BLOCK_PER_PAGE; i++){
         block_read(swap, idx * BLOCK_PER_PAGE + i, kpage + BLOCK_SECTOR_SIZE * i);
+        //printf("swapping in.... kernel page: %p \n", kpage+BLOCK_SECTOR_SIZE * i);
     }
     /*해당 쓰레드의 pageDIR에 추가*/
-    pagedir_set_page(t->pagedir, upage, kpage,pagedir_is_writable(t->pagedir, upage));
+    pagedir_set_page(t->pagedir, s_table.entry[idx].upage, kpage, s_table.entry[idx].writable);
     /*frame table 업데이트*/
-    add_frame(t,upage,kpage);
+    add_frame(t, s_table.entry[idx].upage,kpage);
     /*swap table 에서 제거*/
     s_table.entry[idx].t = NULL;
     s_table.entry[idx].upage = NULL;
     /*swap space에서 제거*/
     /*덮어쓰면 되기 때문에 필요 없다*/
+
+    return true;
+}
+
+void show_swap_table(){
+    for(int idx = 0; idx < 12; idx++){
+        if(s_table.entry == NULL || s_table.entry[idx].t == NULL || s_table.entry[idx].upage == NULL){
+            /*do nothing*/
+        }
+        else{
+            printf("swap table index %d : thread %s, upage %p\n",idx, s_table.entry[idx].t->name,s_table.entry[idx].upage);
+        }
+    }
 }

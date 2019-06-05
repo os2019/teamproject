@@ -16,4 +16,6 @@ void pagedir_set_accessed (uint32_t *pd, const void *upage, bool accessed);
 void pagedir_activate (uint32_t *pd);
 
 bool pagedir_is_writable(uint32_t *pd, const void *vpage);
+void pagedir_set_present(uint32_t *pd, const void *vpage, bool present);
+bool pagedir_empty_page (uint32_t *pd, void *upage, bool writable);
 #endif /* userprog/pagedir.h */
